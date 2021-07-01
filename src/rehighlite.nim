@@ -288,12 +288,7 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
   var outNodes = newSeq[PNode]()
   flatNode(node, outNodes)
 
-  # TLineInfo* = object          # This is designed to be as small as possible,
-  #                              # because it is used
-  #                              # in syntax nodes. We save space here by using
-  #                              # two int16 and an int32.
-  #                              # On 64 bit and on 32 bit systems this is
-  #                              # only 8 bytes.
+  # TLineInfo* = object
   #   line*: uint16
   #   col*: int16
   #   fileIndex*: FileIndex
@@ -448,6 +443,9 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       discard
     of nkCallKinds - {nkInfix, nkPostfix}:
       let id = $n[0]
+      echo id
+      echo n[0].kind
+
       result.add initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA,
           id, tKind = n.kind)
     of nkInfix:
