@@ -90,7 +90,7 @@ type GeneralTokenizer* = object of RootObj
   tKind*: TNodeKind
   start*, length*: int
   buf: cstring
-  pos: int
+  # pos: int
   # state: TokenClass
   # lang: SourceLanguage
 
@@ -292,6 +292,9 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     case n.kind
     of nkEmpty:
       continue
+    of nkMixinStmt:
+      result.add initNimKeyword(n, "mixin",
+          tKind = n.kind)
     of nkImportStmt:
       result.add initNimKeyword(n, "import",
           tKind = n.kind)
@@ -328,6 +331,17 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       # result.add initNimKeyword(n,"type",
       #     tKind = n.kind)
       discard
+    of nkGenericParams:
+      discard
+    of nkTypeClassTy:
+      discard
+    of nkBracketExpr:
+      discard
+    of nkFormalParams:
+      discard
+    of nkProcTy:
+      result.add initNimKeyword(n, "proc",
+          tKind = n.kind)
     of nkTypeDef:
       result.add initNimKeyword(n, "type",
           tKind = n.kind)
