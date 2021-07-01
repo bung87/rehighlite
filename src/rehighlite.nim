@@ -312,6 +312,51 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     case n.kind
     of nkEmpty, nkPar:
       continue
+    of nkIfStmt:
+      result.add initNimKeyword(n, "if",
+        tKind = n.kind)
+    of nkReturnStmt:
+      result.add initNimKeyword(n, "return",
+        tKind = n.kind)
+    of nkBlockStmt:
+      result.add initNimKeyword(n, "block",
+        tKind = n.kind)
+    of nkExceptBranch:
+      result.add initNimKeyword(n, "except",
+       tKind = n.kind)
+    of nkWhileStmt:
+      result.add initNimKeyword(n, "while",
+        tKind = n.kind)
+    of nkTryStmt:
+      result.add initNimKeyword(n, "try",
+        tKind = n.kind)
+    of nkForStmt:
+      result.add initNimKeyword(n, "for",
+        tKind = n.kind)
+    of nkCaseStmt:
+      result.add initNimKeyword(n, "case",
+        tKind = n.kind)
+    of nkContinueStmt:
+      result.add initNimKeyword(n, "continue",
+       tKind = n.kind)
+    of nkAsmStmt:
+      result.add initNimKeyword(n, "asm",
+        tKind = n.kind)
+    of nkDiscardStmt:
+      result.add initNimKeyword(n, "discard",
+        tKind = n.kind)
+    of nkBreakStmt:
+      result.add initNimKeyword(n, "break",
+        tKind = n.kind)
+    of nkElifBranch:
+      result.add initNimKeyword(n, "elif",
+        tKind = n.kind)
+    of nkElse:
+      result.add initNimKeyword(n, "else",
+       tKind = n.kind)
+    of nkOfBranch:
+      result.add initNimKeyword(n, "of",
+       tKind = n.kind)
     of nkCast:
       result.add initNimKeyword(n, "cast",
         tKind = n.kind)
