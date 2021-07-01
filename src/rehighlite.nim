@@ -202,6 +202,10 @@ proc initNimToken(kind: TokenClass; start: int, buf: string, tKind: TNodeKind): 
   result = GeneralTokenizer(kind: kind, start: start, length: buf.len, buf: buf.cstring,
       tKind: tKind) #, lang: SourceLanguage.langNim)
 
+proc initNimKeyword(start: int, buf: string, tKind: TNodeKind): GeneralTokenizer {.inline.} =
+  result = GeneralTokenizer(kind: TokenClass.gtKeyword, start: start, length: buf.len, buf: buf.cstring,
+      tKind: tKind)
+
 proc initNimKeyword(n: PNode, buf: string, tKind: TNodeKind): GeneralTokenizer =
   let start = n.info.offsetA
   let length = if n.info.offsetB == n.info.offsetA: buf.len else: n.info.offsetB - n.info.offsetA + 1
@@ -311,8 +315,21 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
   # callableDefs* = nkLambdaKinds + routineDefs
   for n in outNodes:
     case n.kind
-    of nkEmpty, nkPar:
+    # nkObjConstr
+    of nkEmpty, nkPar, nkBracket, nkAsgn, nkConstSection:
       continue
+    of nkConstDef:
+      result.add initNimKeyword(n, "const",
+        tKind = n.kind)
+    of nkMacroDef:
+      result.add initNimKeyword(n, "macro",
+        tKind = n.kind)
+    of nkLetSection:
+      result.add initNimKeyword(n, "let",
+        tKind = n.kind)
+    of nkIteratorDef:
+      result.add initNimKeyword(n, "iterator",
+       tKind = n.kind)
     of nkIfStmt:
       result.add initNimKeyword(n, "if",
         tKind = n.kind)
@@ -332,8 +349,11 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       result.add initNimKeyword(n, "try",
         tKind = n.kind)
     of nkForStmt:
+      let inStart = n[^2].info.offsetA - 3
       result.add initNimKeyword(n, "for",
         tKind = n.kind)
+      result.add initNimKeyword(inStart, "in",
+        tKind = nkIdent)
     of nkCaseStmt:
       result.add initNimKeyword(n, "case",
         tKind = n.kind)
