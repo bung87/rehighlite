@@ -1,7 +1,7 @@
 # import compiler/[parser, llstream, idents, options, pathutils # , astalgo
 # ]
 # import compiler/[ast, lineinfos]
-import ../mimport
+import ./mimport
 from os import nil
 mImport(os.joinPath( "compiler" , "parser.nim"))
 mImport(os.joinPath( "compiler" , "llstream.nim"))
@@ -10,7 +10,7 @@ mImport(os.joinPath( "compiler" , "options.nim"))
 mImport(os.joinPath( "compiler" , "pathutils.nim"))
 mImport(os.joinPath( "compiler" , "lineinfos.nim"))
 mImport(os.joinPath( "compiler" , "ast.nim"))
-
+export ast
 type ParseError = ref object of CatchableError
 
 proc parsePNodeStr*(str: string): PNode =

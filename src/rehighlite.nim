@@ -1,9 +1,7 @@
 
 import strutils
-import ./rehighlite/hnimast
-import ./rehighlite/hnimast/compiler_aux
-import ./rehighlite/ hnimast/obj_field_macros
-# import hpprint
+import ./rehighlite/pnode_parse
+
 import packages/docutils/highlite except GeneralTokenizer,TokenClass
 
 type
@@ -238,8 +236,7 @@ for o in opcodes:
       of nkEmpty:
         continue
       of CallNodes:
-        echo n.kind
-        echo repr n.sons
+        discard
       else:
         discard
       outNodes.add n
@@ -294,13 +291,12 @@ for o in opcodes:
     case  n.kind
     of nkEmpty:
       continue
-    # of 
     of nkIntLit..nkUInt64Lit:
       tokens.add initNimToken(TokenClass.gtOctNumber,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
     of nkFloatLit..nkFloat128Lit:
       # floatVal*: BiggestFloat
       tokens.add initNimToken(TokenClass.gtDecNumber,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
-    of nkCharLit,nkStrLit..nkTripleStrLit:
+    of nkCharLit,nkStrLit .. nkTripleStrLit:
       # strVal*: string
       tokens.add initNimToken(TokenClass.gtStringLit,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
     # of nkSym:
@@ -325,12 +321,14 @@ for o in opcodes:
       else:
         # echo (n.kind,n.typ,n.ident.s)
         tokens.add initNimToken(TokenClass.gtIdentifier,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
-    of nkCallKinds - {nkInfix}:
-      tokens.add initNimToken(TokenClass.gtSpecialVar,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+    of nkCallKinds - {nkInfix,nkPostfix}:
+      tokens.add initNimToken(TokenClass.gtSpecialVar,n[0].info.offsetA,n[0].info.offsetB - n[0].info.offsetA + 1)
     of nkInfix:
-      tokens.add initNimToken(TokenClass.gtOperator,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+      tokens.add initNimToken(TokenClass.gtOperator,n[0].info.offsetA,n[0].info.offsetB - n[0].info.offsetA + 1)
+    of nkPostfix: 
+      tokens.add initNimToken(TokenClass.gtSpecialVar,n[0].info.offsetA,n[0].info.offsetB - n[0].info.offsetA + 1)
     else:
-      tokens.add initNimToken(TokenClass.gtNone,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+      tokens.add initNimToken(TokenClass.gtIdentifier,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
 
   for t in tokens:
     echo t.kind
