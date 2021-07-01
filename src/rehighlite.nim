@@ -58,4 +58,13 @@ for o in opcodes:
 
   let node = parsePNodeStr(ex)
   for n in node:
-    echo n
+    echo n.kind
+    echo repr n.typ
+    echo n.info
+    echo n.sons.len
+    for s in n.sons:
+      echo s.kind
+      echo repr s.typ
+      echo s.info
+    # echo n
+    # echo repr n
