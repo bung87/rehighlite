@@ -128,6 +128,22 @@ proc getEditorColorPairInNim(kind: TokenClass,
 proc initNimToken(kind: TokenClass; start, length: int): GeneralTokenizer =
   result = GeneralTokenizer(kind: kind, start: start, length: length, lang: SourceLanguage.langNim)
 
+const CallNodes = {nkCall, nkInfix, nkPrefix, nkPostfix, nkCommand,
+             nkCallStrLit, nkHiddenCallConv}
+
+proc flatNode(par: PNode, outNodes: var seq[PNode]) =
+  outNodes.add par
+  for n in par:
+    case n.kind
+    of nkEmpty:
+      continue
+    of CallNodes:
+      discard
+    else:
+      discard
+    outNodes.add n
+    flatNode(n, outNodes)
+
 proc parseTokens*(source: string): seq[GeneralTokenizer] =
 
   # TNode*{.final, acyclic.} = object # on a 32bit machine, this takes 32 bytes
@@ -169,20 +185,8 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
   #
   # var result = newSeq[GeneralTokenizer]()
   let node = parsePNodeStr(source)
-  const CallNodes = {nkCall, nkInfix, nkPrefix, nkPostfix, nkCommand,
-             nkCallStrLit, nkHiddenCallConv}
-  proc flatNode(par: PNode, outNodes: var seq[PNode]) =
-    outNodes.add par
-    for n in par:
-      case n.kind
-      of nkEmpty:
-        continue
-      of CallNodes:
-        discard
-      else:
-        discard
-      outNodes.add n
-      flatNode(n, outNodes)
+
+
   var outNodes = newSeq[PNode]()
   flatNode(node, outNodes)
 
@@ -206,7 +210,6 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
   # routineDefs* = declarativeDefs + {nkMacroDef, nkTemplateDef}
   # procDefs* = nkLambdaKinds + declarativeDefs
   # callableDefs* = nkLambdaKinds + routineDefs
-  var inCall = false
   for n in outNodes:
     case n.kind
     of nkEmpty:
