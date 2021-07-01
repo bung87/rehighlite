@@ -310,8 +310,11 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
   # callableDefs* = nkLambdaKinds + routineDefs
   for n in outNodes:
     case n.kind
-    of nkEmpty:
+    of nkEmpty, nkPar:
       continue
+    of nkCast:
+      result.add initNimKeyword(n, "cast",
+        tKind = n.kind)
     of nkMixinStmt:
       result.add initNimKeyword(n, "mixin",
           tKind = n.kind)
@@ -326,7 +329,7 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
           tKind = n.kind)
     of nkCharLit .. nkUInt64Lit:
       # intVal
-      let val = $n.intVal
+      let val = $n.getInt
       result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, val,
           tKind = n.kind)
     of nkFloatLit..nkFloat128Lit:
@@ -359,6 +362,8 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       #     tKind = n.kind)
       discard
     of nkGenericParams:
+      discard
+    of nkDotExpr:
       discard
     of nkTypeClassTy:
       discard
