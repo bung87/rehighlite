@@ -314,6 +314,9 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkMixinStmt:
       result.add initNimKeyword(n, "mixin",
           tKind = n.kind)
+    of nkTemplateDef:
+      result.add initNimKeyword(n, "template",
+          tKind = n.kind)
     of nkImportStmt:
       result.add initNimKeyword(n, "import",
           tKind = n.kind)
@@ -390,6 +393,8 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       # ident*: PIdent
       result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.ident.s,
           tKind = n.kind)
+    of nkAccQuoted:
+      discard
     of nkCallKinds - {nkInfix, nkPostfix}:
       let id = $n[0]
       result.add initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1,
