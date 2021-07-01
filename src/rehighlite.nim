@@ -4,7 +4,17 @@ import ./rehighlite/hnimast
 import ./rehighlite/hnimast/compiler_aux
 import ./rehighlite/ hnimast/obj_field_macros
 # import hpprint
-import packages/docutils/highlite except GeneralTokenizer
+import packages/docutils/highlite except GeneralTokenizer,TokenClass
+
+type
+  TokenClass* = enum
+    gtEof, gtNone, gtWhitespace, gtDecNumber, gtBinNumber, gtHexNumber,
+    gtOctNumber, gtFloatNumber, gtIdentifier, gtKeyword, gtStringLit,
+    gtLongStringLit, gtCharLit, gtEscapeSequence, # escape sequence like \xff
+    gtOperator, gtPunctuation, gtComment, gtLongComment, gtRegularExpression,
+    gtTagStart, gtTagEnd, gtKey, gtValue, gtRawData, gtAssembler,
+    gtPreprocessor, gtDirective, gtCommand, gtRule, gtHyperlink, gtLabel,
+    gtReference, gtOther, gtBoolean, gtSpecialVar, gtBuiltin
 
 type GeneralTokenizer* = object of RootObj
     kind*: TokenClass
@@ -219,8 +229,19 @@ for o in opcodes:
   # 
   var tokens = newSeq[GeneralTokenizer]()
   let node = parsePNodeStr(ex)
-  proc flatNode(root:PNode,outNodes:var seq[PNode]) = 
-    for n in root:
+  const CallNodes = {nkCall, nkInfix, nkPrefix, nkPostfix, nkCommand,
+             nkCallStrLit, nkHiddenCallConv}
+  proc flatNode(par:PNode,outNodes:var seq[PNode]) = 
+    outNodes.add par
+    for n in par:
+      case n.kind
+      of nkEmpty:
+        continue
+      of CallNodes:
+        echo n.kind
+        echo repr n.sons
+      else:
+        discard
       outNodes.add n
       flatNode(n,outNodes)
   var outNodes = newSeq[PNode]()
@@ -261,42 +282,58 @@ for o in opcodes:
   #     commentOffsetA*, commentOffsetB*: int
   proc initNimToken( kind: TokenClass;start, length: int):GeneralTokenizer = 
     result = GeneralTokenizer(kind:kind, start:start,length:length,lang:SourceLanguage.langNim)
-
+  # nkLiterals* = {nkCharLit..nkTripleStrLit}
+  # nkFloatLiterals* = {nkFloatLit..nkFloat128Lit}
+  # nkLambdaKinds* = {nkLambda, nkDo}
+  # declarativeDefs* = {nkProcDef, nkFuncDef, nkMethodDef, nkIteratorDef, nkConverterDef}
+  # routineDefs* = declarativeDefs + {nkMacroDef, nkTemplateDef}
+  # procDefs* = nkLambdaKinds + declarativeDefs
+  # callableDefs* = nkLambdaKinds + routineDefs
+  var inCall = false
   for n in outNodes:
-    if n.info.fileIndex.int == -1:
-      continue
     case  n.kind
-    # of nkCharLit..nkUInt64Lit:
-    #   tokens.add GeneralTokenizer(kind:TokenClass)
+    of nkEmpty:
+      continue
+    # of 
+    of nkIntLit..nkUInt64Lit:
+      tokens.add initNimToken(TokenClass.gtOctNumber,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
     of nkFloatLit..nkFloat128Lit:
       # floatVal*: BiggestFloat
       tokens.add initNimToken(TokenClass.gtDecNumber,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
-    of nkStrLit..nkTripleStrLit:
+    of nkCharLit,nkStrLit..nkTripleStrLit:
       # strVal*: string
       tokens.add initNimToken(TokenClass.gtStringLit,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
-    of nkSym:
-      # sym*: PSym
-      case n.sym.kind
-        of skResult:
-          # tokens.add GeneralTokenizer(TokenClass.gtStringLit,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
-          discard
-        else:
-          tokens.add initNimToken(TokenClass.gtKeyword,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
-    of nkIdent:
+    # of nkSym:
+    #   # sym*: PSym
+    #   case n.sym.kind
+    #     of skResult:
+    #       tokens.add initNimToken(TokenClass.gtSpecialVar,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+          
+    #       # skProcKinds* = {skProc, skFunc, skTemplate, skMacro, skIterator,
+    #       #         skMethod, skConverter}
+    #       # routineKinds* = {skProc, skFunc, skMethod, skIterator,
+    #       #          skConverter, skMacro, skTemplate}
+    #     of skProcKinds: # https://github.com/nim-lang/Nim/blob/97fc95012d2725b625c492b6b72336a89c501076/compiler/ast.nim#L609
+    #       tokens.add initNimToken(TokenClass.gtOperator,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+    #     else: 
+    #       echo "sym:",n.sym.kind
+    #       tokens.add initNimToken(TokenClass.gtKeyword,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+    of nkIdentKinds:
       # ident*: PIdent
-      tokens.add initNimToken(TokenClass.gtIdentifier,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+      if n.ident.s == "result":
+        tokens.add initNimToken(TokenClass.gtSpecialVar,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+      else:
+        # echo (n.kind,n.typ,n.ident.s)
+        tokens.add initNimToken(TokenClass.gtIdentifier,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+    of nkCallKinds - {nkInfix}:
+      tokens.add initNimToken(TokenClass.gtSpecialVar,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+    of nkInfix:
+      tokens.add initNimToken(TokenClass.gtOperator,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
     else:
-      tokens.add initNimToken(TokenClass.gtKeyword,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+      tokens.add initNimToken(TokenClass.gtNone,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
 
-  echo tokens
-  # for n in node:
-  #   echo n.kind
-  #   echo repr n.typ
-  #   echo n.info
-  #   echo n.sons.len
-  #   for s in n.sons:
-  #     echo s.kind
-  #     echo repr s.typ
-  #     echo s.info
-    # echo n
-    # echo repr n
+  for t in tokens:
+    echo t.kind
+    echo ex[t.start ..< t.start + t.length ]
+  
+  # skProcKinds

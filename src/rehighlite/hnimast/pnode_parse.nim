@@ -30,6 +30,7 @@ proc parsePNodeStr*(str: string): PNode =
     cache = cache,
     config = config
   )
+  # parseString(str,cache,config)
 
   pars.lex.errorHandler =
     proc(conf: ConfigRef; info: TLineInfo; msg: TMsgKind; arg: string) =
