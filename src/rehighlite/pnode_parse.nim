@@ -21,11 +21,13 @@ proc parsePNodeStr*(str: string): PNode =
   let config: ConfigRef = newConfigRef()
   var pars: Parser
 
-  config.verbosity = 0
-  config.options.excl optHints
+  # config.verbosity = 0
+  # config.options.excl optHints
   when defined(nimpretty):
-    config.outDir = toAbsoluteDir(os.parentDir(currentSourcePath))
-    config.outFile = RelativeFile("fake")
+    # config.outDir = toAbsoluteDir(os.parentDir(currentSourcePath))
+    # config.outFile = RelativeFile("fake")
+    config.outDir = toAbsoluteDir(DevNullDir)
+    config.outFile = RelativeFile(DevNullFile)
   openParser(
     p = pars,
     filename = AbsoluteFile(currentSourcePath),
