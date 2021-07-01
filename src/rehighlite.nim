@@ -1,8 +1,71 @@
 
 import strutils
 import ./rehighlite/pnode_parse
-
+from algorithm import binarySearch
 import packages/docutils/highlite except GeneralTokenizer, TokenClass
+
+const
+  # The following list comes from doc/keywords.txt, make sure it is
+  # synchronized with this array by running the module itself as a test case.
+  nimKeywords = ["addr", "and", "as", "asm", "bind", "block",
+    "break", "case", "cast", "concept", "const", "continue", "converter",
+    "defer", "discard", "distinct", "div", "do",
+    "elif", "else", "end", "enum", "except", "export",
+    "finally", "for", "from", "func",
+    "if", "import", "in", "include",
+    "interface", "is", "isnot", "iterator", "let", "macro", "method",
+    "mixin", "mod", "nil", "not", "notin", "object", "of", "or", "out", "proc",
+    "ptr", "raise", "ref", "return", "shl", "shr", "static",
+    "template", "try", "tuple", "type", "using", "var", "when", "while",
+    "xor", "yield"]
+  nimBooleans = ["true", "false"]
+  nimSpecialVars = ["result"]
+  # Builtin types, objects, and exceptions
+  nimBuiltins = ["AccessViolationError", "AlignType", "ArithmeticError",
+    "AssertionError", "BiggestFloat", "BiggestInt", "Byte", "ByteAddress",
+    "CloseFile", "CompileDate", "CompileTime", "Conversion", "DeadThreadError",
+    "DivByZeroError", "EndOfFile", "Endianness", "Exception", "ExecIOEffect",
+    "FieldError", "File", "FileHandle", "FileMode", "FileModeFileHandle",
+    "FloatDivByZeroError", "FloatInexactError", "FloatInvalidOpError",
+    "FloatOverflowError", "FloatUnderflowError", "FloatingPointError",
+    "FlushFile", "GC_Strategy", "GC_disable", "GC_disableMarkAnd", "GC_enable",
+    "GC_enableMarkAndSweep", "GC_fullCollect", "GC_getStatistics", "GC_ref",
+    "GC_setStrategy", "GC_unref", "IOEffect", "IOError", "IndexError",
+    "KeyError", "LibHandle", "LibraryError", "Msg", "Natural", "NimNode",
+    "OSError", "ObjectAssignmentError", "ObjectConversionError", "OpenFile",
+    "Ordinal", "OutOfMemError", "OverflowError", "PFloat32", "PFloat64",
+    "PFrame", "PInt32", "PInt64", "Positive", "ProcAddr", "QuitFailure",
+    "QuitSuccess", "RangeError", "ReadBytes", "ReadChars", "ReadIOEffect",
+    "RefCount", "ReraiseError", "ResourceExhaustedError", "RootEffect",
+    "RootObj", "RootObjRootRef", "Slice", "SomeInteger", "SomeNumber",
+    "SomeOrdinal", "SomeReal", "SomeSignedInt", "SomeUnsignedInt",
+    "StackOverflowError", "Sweep", "SystemError", "TFrame", "THINSTANCE",
+    "TResult", "TaintedString", "TimeEffect", "Utf16Char", "ValueError",
+    "WideCString", "WriteIOEffect", "abs", "add", "addQuitProc", "alloc",
+    "alloc0", "array", "assert", "autoany", "bool", "byte", "card", "cchar",
+    "cdouble", "cfloat", "char", "chr", "cint", "clong", "clongdouble",
+    "clonglong", "copy", "copyMem", "countdown", "countup", "cpuEndian",
+    "cschar", "cshort", "csize", "cstring", "cstringArray", "cuchar", "cuint",
+    "culong", "culonglong", "cushort", "dbgLineHook", "dealloc", "dec",
+    "defined", "echo", "equalMem", "equalmem", "excl", "expr", "fileHandle",
+    "find", "float", "float32", "float64", "getCurrentException", "getFilePos",
+    "getFileSize", "getFreeMem", "getOccupiedMem", "getRefcount", "getTotalMem",
+    "guarded", "high", "hostCPU", "hostOS", "inc", "incl", "inf", "int", "int16",
+    "int32", "int64", "int8", "isNil", "items", "len", "lines", "low", "max",
+    "min", "moveMem", "movemem", "nan", "neginf", "new", "newSeq", "newString",
+    "newseq", "newstring", "nimMajor", "nimMinor", "nimPatch", "nimVersion",
+    "nimmajor", "nimminor", "nimpatch", "nimversion", "openArray", "openarray",
+    "ord", "pointer", "pop", "pred", "ptr", "quit", "range", "readBuffer",
+    "readChar", "readFile", "readLine", "readbuffer", "readfile", "readline",
+    "realloc", "ref", "repr", "seq", "seqToPtr", "seqtoptr", "set",
+    "setFilePos", "setLen", "setfilepos", "setlen", "shared", "sizeof",
+    "stderr", "stdin", "stdout", "stmt", "string", "succ", "swap",
+    "toBiggestFloat", "toBiggestInt", "toFloat", "toInt", "toU16", "toU32",
+    "toU8", "tobiggestfloat", "tobiggestint", "tofloat", "toint", "tou16",
+    "tou32", "tou8", "typed", "typedesc", "uint", "uint16", "uint32",
+    "uint32uint64", "uint64", "uint8", "untyped", "varArgs", "void", "write",
+    "writeBuffer", "writeBytes", "writeChars", "writeLine", "writeLn", "ze",
+    "ze64", "zeroMem"]
 
 type
   TokenClass* = enum
@@ -14,13 +77,22 @@ type
     gtPreprocessor, gtDirective, gtCommand, gtRule, gtHyperlink, gtLabel,
     gtReference, gtOther, gtBoolean, gtSpecialVar, gtBuiltin
 
+proc nimGetKeyword(id: string): TokenClass =
+  for k in nimKeywords:
+    if cmpIgnoreStyle(id, k) == 0: return gtKeyword
+  if binarySearch(nimBooleans, id) > -1: return gtBoolean
+  if binarySearch(nimSpecialVars, id) > -1: return gtSpecialVar
+  if binarySearch(nimBuiltins, id) > -1: return gtBuiltin
+  result = gtIdentifier
+
 type GeneralTokenizer* = object of RootObj
   kind*: TokenClass
+  tKind*: TNodeKind
   start*, length*: int
   buf: cstring
   pos: int
-  state: TokenClass
-  lang: SourceLanguage
+  # state: TokenClass
+  # lang: SourceLanguage
 
 type EditorColorPair* = enum
   lineNum = 1
@@ -125,8 +197,8 @@ proc getEditorColorPairInNim(kind: TokenClass,
       if isProcName: EditorColorPair.functionName
       else: EditorColorPair.defaultChar
 
-proc initNimToken(kind: TokenClass; start, length: int): GeneralTokenizer =
-  result = GeneralTokenizer(kind: kind, start: start, length: length, lang: SourceLanguage.langNim)
+proc initNimToken(kind: TokenClass; start, length: int, buf: string, tKind: TNodeKind): GeneralTokenizer =
+  result = GeneralTokenizer(kind: kind, start: start, length: length, buf: buf.cstring, tKind: tKind) #, lang: SourceLanguage.langNim)
 
 const CallNodes = {nkCall, nkInfix, nkPrefix, nkPostfix, nkCommand,
              nkCallStrLit, nkHiddenCallConv}
@@ -215,13 +287,17 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkEmpty:
       continue
     of nkIntLit..nkUInt64Lit:
-      result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1)
+      # intVal
+      result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, $n.intVal,
+          tKind = n.kind)
     of nkFloatLit..nkFloat128Lit:
       # floatVal*: BiggestFloat
-      result.add initNimToken(TokenClass.gtDecNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1)
+      result.add initNimToken(TokenClass.gtDecNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, $n.floatVal,
+          tKind = n.kind)
     of nkCharLit, nkStrLit .. nkTripleStrLit:
       # strVal*: string
-      result.add initNimToken(TokenClass.gtStringLit, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1)
+      result.add initNimToken(TokenClass.gtStringLit, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, source[
+          n.info.offsetA .. n.info.offsetB], tKind = n.kind)
     # of nkSym:
     #   # sym*: PSym
     #   case n.sym.kind
@@ -239,22 +315,18 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     #       result.add initNimToken(TokenClass.gtKeyword,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
     of nkIdentKinds:
       # ident*: PIdent
-      if n.ident.s == "result":
-        result.add initNimToken(TokenClass.gtSpecialVar, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1)
-      else:
-        # echo (n.kind,n.typ,n.ident.s)
-        result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1)
+      result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.ident.s,
+          tKind = n.kind)
     of nkCallKinds - {nkInfix, nkPostfix}:
-      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1)
+      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1,
+          source[n.info.offsetA .. n.info.offsetB], tKind = n.kind)
     of nkInfix:
-      result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1)
+      result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, n[
+          0].ident.s, tKind = n.kind)
     of nkPostfix:
-      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1)
+      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, n[
+          0].ident.s, tKind = n.kind)
     else:
-      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1)
+      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, source[
+          n.info.offsetA .. n.info.offsetB], tKind = n.kind)
 
-  # for t in result:
-  #   echo t.kind
-  #   echo ex[t.start ..< t.start + t.length ]
-
-  # skProcKinds
