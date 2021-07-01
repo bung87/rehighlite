@@ -75,7 +75,7 @@ type
     gtOperator, gtPunctuation, gtComment, gtLongComment, gtRegularExpression,
     gtTagStart, gtTagEnd, gtKey, gtValue, gtRawData, gtAssembler,
     gtPreprocessor, gtDirective, gtCommand, gtRule, gtHyperlink, gtLabel,
-    gtReference, gtOther, gtBoolean, gtSpecialVar, gtBuiltin
+    gtReference, gtOther, gtBoolean, gtSpecialVar, gtBuiltin, gtFunctionName
 
 proc nimGetKeyword(id: string): TokenClass =
   for k in nimKeywords:
@@ -184,15 +184,16 @@ proc getEditorColorPairInNim(kind: TokenClass,
 
   case kind:
     of gtKeyword: EditorColorPair.keyword
-    # of gtBoolean: EditorColorPair.boolean # nimBooleans = ["true", "false"]
-    # of gtSpecialVar: EditorColorPair.specialVar # nimSpecialVars = ["result"]
-    # of gtBuiltin: EditorColorPair.builtin # # Builtin types, objects, and exceptions
+    of gtBoolean: EditorColorPair.boolean # nimBooleans = ["true", "false"]
+    of gtSpecialVar: EditorColorPair.specialVar # nimSpecialVars = ["result"]
+    of gtBuiltin: EditorColorPair.builtin # # Builtin types, objects, and exceptions
     of gtStringLit: EditorColorPair.stringLit
     of gtDecNumber: EditorColorPair.decNumber
     of gtComment: EditorColorPair.comment
     of gtLongComment: EditorColorPair.longComment
     of gtPreprocessor: EditorColorPair.preprocessor
     of gtWhitespace, gtPunctuation: EditorColorPair.defaultChar
+    of gtFunctionName: EditorColorPair.functionName
     else:
       if isProcName: EditorColorPair.functionName
       else: EditorColorPair.defaultChar
@@ -221,6 +222,24 @@ proc flatNode(par: PNode, outNodes: var seq[PNode]) =
       discard
     outNodes.add n
     flatNode(n, outNodes)
+
+proc `$`*(node: PNode): string =
+  ## Get the string of an identifier node.
+  case node.kind
+  of nkPostfix:
+    result = $node[0].ident.s
+  of nkIdent:
+    result = $node.ident.s
+  of nkPrefix:
+    result = $node.ident.s
+  of nkStrLit..nkTripleStrLit, nkCommentStmt, nkSym:
+    result = node.strVal
+  # of nnkOpenSymChoice, nnkClosedSymChoice:
+  #   result = $node[0]
+  of nkAccQuoted:
+    result = $node[0]
+  else:
+    discard
 
 proc parseTokens*(source: string): seq[GeneralTokenizer] =
 
@@ -301,18 +320,19 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkNilLit:
       result.add initNimKeyword(n, "nil",
           tKind = n.kind)
-    of nkIntLit..nkUInt64Lit:
+    of nkCharLit..nkUInt64Lit:
       # intVal
-      result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, $n.intVal,
+      let val = $n.intVal
+      result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, val,
           tKind = n.kind)
     of nkFloatLit..nkFloat128Lit:
       # floatVal*: BiggestFloat
       result.add initNimToken(TokenClass.gtDecNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, $n.floatVal,
           tKind = n.kind)
-    of nkCharLit, nkStrLit .. nkTripleStrLit:
+    of nkStrLit .. nkTripleStrLit:
       # strVal*: string
-      result.add initNimToken(TokenClass.gtStringLit, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, source[
-          n.info.offsetA .. n.info.offsetB], tKind = n.kind)
+      result.add initNimToken(TokenClass.gtStringLit, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.strVal,
+          tKind = n.kind)
     # of nkSym:
     #   # sym*: PSym
     #   case n.sym.kind
@@ -357,20 +377,28 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       discard
     of nkIdentDefs:
       discard
-    of nkIdentKinds:
+    # of nkAccQuoted:
+    #   continue
+    #   let n = n[0]
+    #   result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.ident.s,
+    #         tKind = n.kind)
+    of nkIdentKinds - {nkAccQuoted}:
       # ident*: PIdent
       result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.ident.s,
           tKind = n.kind)
     of nkCallKinds - {nkInfix, nkPostfix}:
-      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1,
-          source[n[0].info.offsetA .. n[0].info.offsetB], tKind = n.kind)
+      let id = $n[0]
+      result.add initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1,
+          id, tKind = n.kind)
     of nkInfix:
-      result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, n[
-          0].ident.s, tKind = n.kind)
+      result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, $n,
+          tKind = n.kind)
     of nkPostfix:
-      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, n[
-          0].ident.s, tKind = n.kind)
+      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, $n,
+          tKind = n.kind)
     else:
-      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, source[
-          n.info.offsetA .. n.info.offsetB], tKind = n.kind)
+      # source[ n.info.offsetA .. n.info.offsetB]
+      let buf = $n
+      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, buf,
+          tKind = n.kind)
 
