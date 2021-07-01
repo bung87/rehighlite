@@ -226,7 +226,7 @@ proc flatNode(par: PNode, outNodes: var seq[PNode]) =
 proc `$`*(node: PNode): string =
   ## Get the string of an identifier node.
   case node.kind
-  of nkPostfix:
+  of nkPostfix, nkInfix:
     result = $node[0].ident.s
   of nkIdent:
     result = $node.ident.s
@@ -320,7 +320,7 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkNilLit:
       result.add initNimKeyword(n, "nil",
           tKind = n.kind)
-    of nkCharLit..nkUInt64Lit:
+    of nkCharLit .. nkUInt64Lit:
       # intVal
       let val = $n.intVal
       result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, val,
@@ -376,6 +376,10 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkRecList:
       discard
     of nkIdentDefs:
+      discard
+    of nkExprColonExpr:
+      discard
+    of nkTableConstr:
       discard
     # of nkAccQuoted:
     #   continue
