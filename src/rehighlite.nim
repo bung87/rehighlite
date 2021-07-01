@@ -200,11 +200,17 @@ proc getEditorColorPairInNim(kind: TokenClass,
 proc initNimToken(kind: TokenClass; start, length: int, buf: string, tKind: TNodeKind): GeneralTokenizer =
   result = GeneralTokenizer(kind: kind, start: start, length: length, buf: buf.cstring, tKind: tKind) #, lang: SourceLanguage.langNim)
 
+proc initNimKeyword(n: PNode, buf: string, tKind: TNodeKind): GeneralTokenizer =
+  let start = n.info.offsetA
+  let length = if n.info.offsetB == n.info.offsetA: buf.len else: n.info.offsetB - n.info.offsetA + 1
+  result = GeneralTokenizer(kind: TokenClass.gtKeyword, start: start, length: length, buf: buf.cstring,
+      tKind: tKind) #, lang: SourceLanguage.langNim)
+
 const CallNodes = {nkCall, nkInfix, nkPrefix, nkPostfix, nkCommand,
              nkCallStrLit, nkHiddenCallConv}
 
 proc flatNode(par: PNode, outNodes: var seq[PNode]) =
-  outNodes.add par
+  # outNodes.add par
   for n in par:
     case n.kind
     of nkEmpty:
@@ -286,6 +292,9 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     case n.kind
     of nkEmpty:
       continue
+    of nkImportStmt:
+      result.add initNimKeyword(n, "import",
+          tKind = n.kind)
     of nkIntLit..nkUInt64Lit:
       # intVal
       result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, $n.intVal,
@@ -313,13 +322,31 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     #     else:
     #       echo "sym:",n.sym.kind
     #       result.add initNimToken(TokenClass.gtKeyword,n.info.offsetA,n.info.offsetB - n.info.offsetA + 1)
+    of nkTypeSection:
+      # let n = n[0]
+      # echo repr n
+      # result.add initNimKeyword(n,"type",
+      #     tKind = n.kind)
+      discard
+    of nkTypeDef:
+      result.add initNimKeyword(n, "type",
+          tKind = n.kind)
+    of nkObjectTy:
+      result.add initNimKeyword(n, "object",
+          tKind = n.kind)
+    of nkStmtList:
+      discard
+    of nkRecList:
+      discard
+    of nkIdentDefs:
+      discard
     of nkIdentKinds:
       # ident*: PIdent
       result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.ident.s,
           tKind = n.kind)
     of nkCallKinds - {nkInfix, nkPostfix}:
       result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1,
-          source[n.info.offsetA .. n.info.offsetB], tKind = n.kind)
+          source[n[0].info.offsetA .. n[0].info.offsetB], tKind = n.kind)
     of nkInfix:
       result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, n[
           0].ident.s, tKind = n.kind)
