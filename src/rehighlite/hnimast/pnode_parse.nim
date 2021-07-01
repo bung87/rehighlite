@@ -20,7 +20,9 @@ proc parsePNodeStr*(str: string): PNode =
 
   config.verbosity = 0
   config.options.excl optHints
-
+  when defined(nimpretty):
+    config.outDir = toAbsoluteDir(os.parentDir currentSourcePath())
+    config.outFile = RelativeFile("fake")
   openParser(
     p = pars,
     filename = AbsoluteFile(currentSourcePath()),

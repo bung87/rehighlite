@@ -1,7 +1,7 @@
 *
 !**/
 !*.*
-
+src/rehighlite/nodekind.nim
 # Cache
 nimcache/
 rnimcache/

@@ -7,7 +7,13 @@ import hmisc/[base_errors]
 export base_errors
 
 import std/[options, macros]
-import compiler/[ast, idents, lineinfos, renderer]
+import ./mimport
+from os import nil
+mImport(os.joinPath( "compiler" , "ast.nim"))
+mImport(os.joinPath( "compiler" , "idents.nim"))
+mImport(os.joinPath( "compiler" , "lineinfos.nim"))
+mImport(os.joinPath( "compiler" , "renderer.nim"))
+# import compiler/[ast, idents, lineinfos, renderer]
 export idents, lineinfos
 
 import ./hnimast/[
