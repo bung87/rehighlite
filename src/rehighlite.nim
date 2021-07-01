@@ -213,12 +213,18 @@ const CallNodes = {nkCall, nkInfix, nkPrefix, nkPostfix, nkCommand,
 
 proc flatNode(par: PNode, outNodes: var seq[PNode]) =
   # outNodes.add par
+  var d: PNode
   for n in par:
+    d = n
     case n.kind
     of nkEmpty:
       continue
     of CallNodes:
-      discard
+      d.sons.setLen(1)
+      outNodes.add d
+      for s in n.sons[1 .. ^1]:
+        flatNode(s, outNodes)
+      continue
     else:
       discard
     outNodes.add n
