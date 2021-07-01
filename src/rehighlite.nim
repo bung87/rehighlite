@@ -198,8 +198,9 @@ proc getEditorColorPairInNim(kind: TokenClass,
       if isProcName: EditorColorPair.functionName
       else: EditorColorPair.defaultChar
 
-proc initNimToken(kind: TokenClass; start, length: int, buf: string, tKind: TNodeKind): GeneralTokenizer =
-  result = GeneralTokenizer(kind: kind, start: start, length: length, buf: buf.cstring, tKind: tKind) #, lang: SourceLanguage.langNim)
+proc initNimToken(kind: TokenClass; start: int, buf: string, tKind: TNodeKind): GeneralTokenizer {.inline.} =
+  result = GeneralTokenizer(kind: kind, start: start, length: buf.len, buf: buf.cstring,
+      tKind: tKind) #, lang: SourceLanguage.langNim)
 
 proc initNimKeyword(n: PNode, buf: string, tKind: TNodeKind): GeneralTokenizer =
   let start = n.info.offsetA
@@ -326,15 +327,15 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkCharLit .. nkUInt64Lit:
       # intVal
       let val = $n.intVal
-      result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, val,
+      result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, val,
           tKind = n.kind)
     of nkFloatLit..nkFloat128Lit:
       # floatVal*: BiggestFloat
-      result.add initNimToken(TokenClass.gtDecNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, $n.floatVal,
+      result.add initNimToken(TokenClass.gtDecNumber, n.info.offsetA, $n.floatVal,
           tKind = n.kind)
     of nkStrLit .. nkTripleStrLit:
       # strVal*: string
-      result.add initNimToken(TokenClass.gtStringLit, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.strVal,
+      result.add initNimToken(TokenClass.gtStringLit, n.info.offsetA, n.strVal,
           tKind = n.kind)
     # of nkSym:
     #   # sym*: PSym
@@ -387,27 +388,27 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     # of nkAccQuoted:
     #   continue
     #   let n = n[0]
-    #   result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.ident.s,
+    #   result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA,  n.ident.s,
     #         tKind = n.kind)
     of nkIdentKinds - {nkAccQuoted}:
       # ident*: PIdent
-      result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, n.ident.s,
+      result.add initNimToken(nimGetKeyword(n.ident.s), n.info.offsetA, n.ident.s,
           tKind = n.kind)
     of nkAccQuoted:
       discard
     of nkCallKinds - {nkInfix, nkPostfix}:
       let id = $n[0]
-      result.add initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1,
+      result.add initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA,
           id, tKind = n.kind)
     of nkInfix:
-      result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, $n,
+      result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, $n,
           tKind = n.kind)
     of nkPostfix:
-      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, n[0].info.offsetB - n[0].info.offsetA + 1, $n,
+      result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, $n,
           tKind = n.kind)
     else:
       # source[ n.info.offsetA .. n.info.offsetB]
       let buf = $n
-      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, buf,
+      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, buf,
           tKind = n.kind)
 
