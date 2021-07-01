@@ -11,7 +11,10 @@ mImport(os.joinPath( "compiler" , "pathutils.nim"))
 mImport(os.joinPath( "compiler" , "lineinfos.nim"))
 mImport(os.joinPath( "compiler" , "ast.nim"))
 export ast
+
 type ParseError = ref object of CatchableError
+const DevNullDir = when defined(windows):"c:\\" else: "/dev"
+const DevNullFile = when defined(windows):"nul" else: "null"
 
 proc parsePNodeStr*(str: string): PNode =
   let cache: IdentCache = newIdentCache()
@@ -21,11 +24,11 @@ proc parsePNodeStr*(str: string): PNode =
   config.verbosity = 0
   config.options.excl optHints
   when defined(nimpretty):
-    config.outDir = toAbsoluteDir(os.parentDir currentSourcePath())
+    config.outDir = toAbsoluteDir(os.parentDir(currentSourcePath))
     config.outFile = RelativeFile("fake")
   openParser(
     p = pars,
-    filename = AbsoluteFile(currentSourcePath()),
+    filename = AbsoluteFile(currentSourcePath),
     inputStream = llStreamOpen(str),
     cache = cache,
     config = config
