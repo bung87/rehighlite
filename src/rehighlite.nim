@@ -298,6 +298,9 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkImportStmt:
       result.add initNimKeyword(n, "import",
           tKind = n.kind)
+    of nkNilLit:
+      result.add initNimKeyword(n, "nil",
+          tKind = n.kind)
     of nkIntLit..nkUInt64Lit:
       # intVal
       result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, n.info.offsetB - n.info.offsetA + 1, $n.intVal,
