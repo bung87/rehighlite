@@ -348,8 +348,6 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, $n,
           tKind = n.kind)
     else:
-      # source[ n.info.offsetA .. n.info.offsetB]
-      let buf = $n
-      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, buf,
+      result.add initNimToken(TokenClass.gtIdentifier, n.info.offsetA, $n,
           tKind = n.kind)
 
