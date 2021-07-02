@@ -13,7 +13,7 @@ type
     gtOperator, gtPunctuation, gtComment, gtLongComment, gtRegularExpression,
     gtTagStart, gtTagEnd, gtKey, gtValue, gtRawData, gtAssembler,
     gtPreprocessor, gtDirective, gtCommand, gtRule, gtHyperlink, gtLabel,
-    gtReference, gtOther, gtBoolean, gtSpecialVar, gtBuiltin, gtFunctionName
+    gtReference, gtOther, gtBoolean, gtSpecialVar, gtBuiltin, gtFunctionName,gtTypeName
 
 proc nimGetKeyword(id: string): TokenClass =
   for k in nimKeywords:
@@ -62,7 +62,7 @@ proc getEditorColorPairInNim(kind: TokenClass,
 
 proc initNimToken(kind: TokenClass; start: int, buf: string, tKind: TNodeKind): GeneralTokenizer {.inline.} =
   result = GeneralTokenizer(kind: kind, start: start, length: buf.len, buf: buf.cstring,
-      tKind: tKind) #, lang: SourceLanguage.langNim)
+      tKind: tKind)
 
 proc initNimKeyword(start: int, buf: string, tKind: TNodeKind): GeneralTokenizer {.inline.} =
   result = GeneralTokenizer(kind: TokenClass.gtKeyword, start: start, length: buf.len, buf: buf.cstring,
@@ -141,9 +141,14 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
 
   for n in outNodes:
     case n.kind
-    # TODO nkObjConstr
+    of nkObjConstr:
+      result.add initNimToken(TokenClass.gtTypeName, n[0].info.offsetA, n[0].ident.s,
+        tKind = n.kind)
     of nkEmpty, nkPar, nkBracket, nkAsgn, nkConstSection:
       continue
+    of nkYieldStmt:
+      result.add initNimKeyword(n, "yield",
+       tKind = n.kind)
     of nkVarTy:
       result.add initNimKeyword(n, "var",
        tKind = n.kind)
