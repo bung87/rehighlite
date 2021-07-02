@@ -323,11 +323,32 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     # TODO nkObjConstr
     of nkEmpty, nkPar, nkBracket, nkAsgn, nkConstSection:
       continue
+    of nkIncludeStmt:
+      result.add initNimKeyword(n, "include",
+       tKind = n.kind)
+    of nkFromStmt:
+      result.add initNimKeyword(n[0].info.offsetA, "from",
+          tKind = n.kind)
+    of nkImportExceptStmt:
+      result.add initNimKeyword(n, "import",
+        tKind = n.kind)
+      let inStart = n[0].info.offsetB
+      result.add initNimKeyword(inStart, "except",
+        tKind = n.kind)
+    of nkExportStmt:
+      result.add initNimKeyword(n, "export",
+        tKind = n.kind)
+    of nkExportExceptStmt:
+      result.add initNimKeyword(n, "export",
+        tKind = n.kind)
     of nkConstDef:
       result.add initNimKeyword(n, "const",
         tKind = n.kind)
     of nkMacroDef:
       result.add initNimKeyword(n, "macro",
+        tKind = n.kind)
+    of nkVarSection:
+      result.add initNimKeyword(n, "var",
         tKind = n.kind)
     of nkLetSection:
       result.add initNimKeyword(n, "let",
@@ -484,7 +505,11 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
         result.add tok
 
     of nkInfix:
-      result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, $n,
+      if $n[0] == "as":
+        result.add initNimKeyword(n[0].info.offsetA, "as",
+          tKind = n.kind)
+      else:
+        result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, $n,
           tKind = n.kind)
     of nkPostfix:
       result.add initNimToken(TokenClass.gtSpecialVar, n[0].info.offsetA, $n,
