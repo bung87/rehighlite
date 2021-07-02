@@ -86,11 +86,17 @@ proc flatNode(par: PNode, outNodes: var seq[PNode]) =
     of nkEmpty:
       continue
     of nkForStmt:
-      outNodes.add d
       for s in n.sons[^2 .. ^1]:
         flatNode(s, outNodes)
+      outNodes.add d
       continue
-    of CallNodes:
+    of nkProcDef:
+      for s in n.sons[1 .. ^1]:
+        flatNode(s, outNodes)
+      d.sons.setLen(1)
+      outNodes.add d
+      continue
+    of {nkCall, nkCommand}:
       d.sons.setLen(1)
       outNodes.add d
       for s in n.sons[1 .. ^1]:
@@ -119,6 +125,15 @@ proc `$`*(node: PNode): string =
   else:
     discard
 
+proc basename*(a: PNode): PNode {.raises: [].} =
+  ## Pull an identifier from prefix/postfix expressions.
+  case a.kind
+  of nkIdent: result = a
+  of nkPostfix, nkPrefix:result = a[1]
+  of nkPragmaExpr: result = basename(a[0])
+  else:
+    discard
+
 proc parseTokens*(source: string): seq[GeneralTokenizer] =
   let node = parsePNodeStr(source)
   var outNodes = newSeq[PNode]()
@@ -129,6 +144,17 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     # TODO nkObjConstr
     of nkEmpty, nkPar, nkBracket, nkAsgn, nkConstSection:
       continue
+    of nkVarTy:
+      result.add initNimKeyword(n, "var",
+       tKind = n.kind)
+    of nkPragma:
+      result.add initNimKeyword(n, $n,
+      tKind = n.kind)
+    of nkProcDef:
+      result.add initNimKeyword(n, "proc",
+      tKind = n.kind)
+      result.add initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA, $ n[0].basename(),
+        tKind = n.kind)
     of nkIncludeStmt:
       result.add initNimKeyword(n, "include",
        tKind = n.kind)
