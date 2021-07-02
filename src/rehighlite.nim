@@ -223,6 +223,11 @@ proc flatNode(par: PNode, outNodes: var seq[PNode]) =
     case n.kind
     of nkEmpty:
       continue
+    of nkForStmt:
+      outNodes.add d
+      for s in n.sons[^2 .. ^1]:
+        flatNode(s, outNodes)
+      continue
     of CallNodes:
       d.sons.setLen(1)
       outNodes.add d
@@ -315,7 +320,7 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
   # callableDefs* = nkLambdaKinds + routineDefs
   for n in outNodes:
     case n.kind
-    # nkObjConstr
+    # TODO nkObjConstr
     of nkEmpty, nkPar, nkBracket, nkAsgn, nkConstSection:
       continue
     of nkConstDef:
@@ -393,7 +398,11 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
     of nkNilLit:
       result.add initNimKeyword(n, "nil",
           tKind = n.kind)
-    of nkCharLit .. nkUInt64Lit:
+    of nkCharLit:
+      let val = $n.intVal.char
+      result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, val,
+          tKind = n.kind)
+    of nkIntLit .. nkUInt64Lit:
       # intVal
       let val = $n.getInt
       result.add initNimToken(TokenClass.gtOctNumber, n.info.offsetA, val,
@@ -467,13 +476,13 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
           tKind = n.kind)
     of nkAccQuoted:
       discard
-    of nkCallKinds - {nkInfix, nkPostfix}:
+    of nkCallKinds - {nkInfix, nkPostfix, nkDotExpr}:
       let id = $n[0]
-      echo id
-      echo n[0].kind
-
-      result.add initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA,
+      let tok = initNimToken(TokenClass.gtFunctionName, n[0].info.offsetA,
           id, tKind = n.kind)
+      if tok.buf.len > 0:
+        result.add tok
+
     of nkInfix:
       result.add initNimToken(TokenClass.gtOperator, n[0].info.offsetA, $n,
           tKind = n.kind)
