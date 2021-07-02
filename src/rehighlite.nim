@@ -21,6 +21,7 @@ proc nimGetKeyword(id: string): TokenClass =
   if binarySearch(nimBooleans, id) > -1: return gtBoolean
   if binarySearch(nimSpecialVars, id) > -1: return gtSpecialVar
   if binarySearch(nimBuiltins, id) > -1: return gtBuiltin
+  if id[0] in {'A' .. 'Z'}: return gtTypeName
   result = gtIdentifier
 
 type GeneralTokenizer* = object of RootObj
@@ -131,6 +132,7 @@ proc basename*(a: PNode): PNode {.raises: [].} =
   of nkIdent: result = a
   of nkPostfix, nkPrefix:result = a[1]
   of nkPragmaExpr: result = basename(a[0])
+  of nkExprColonExpr: result = a[0]
   else:
     discard
 
@@ -153,7 +155,7 @@ proc parseTokens*(source: string): seq[GeneralTokenizer] =
       result.add initNimKeyword(n, "var",
        tKind = n.kind)
     of nkPragma:
-      result.add initNimKeyword(n, $n,
+      result.add initNimKeyword(n[0], $n[0].basename(),
       tKind = n.kind)
     of nkProcDef:
       result.add initNimKeyword(n, "proc",
